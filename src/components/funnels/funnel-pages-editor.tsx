@@ -56,29 +56,44 @@ export function FunnelPagesEditor({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   function addPage(type: FunnelPageType) {
+    setActionError(null);
     startTransition(async () => {
       const result = await createFunnelPage(funnelId, type);
+      if (result.error) {
+        setActionError(result.error);
+        return;
+      }
       if (result.id) setExpandedId(result.id);
     });
   }
 
   function move(pageId: string, direction: "up" | "down") {
+    setActionError(null);
     startTransition(async () => {
-      await reorderFunnelPage(pageId, funnelId, direction);
+      const result = await reorderFunnelPage(pageId, funnelId, direction);
+      if (result.error) setActionError(result.error);
     });
   }
 
   function remove(pageId: string) {
     if (!confirm("Delete this page?")) return;
+    setActionError(null);
     startTransition(async () => {
-      await deleteFunnelPage(pageId, funnelId);
+      const result = await deleteFunnelPage(pageId, funnelId);
+      if (result.error) setActionError(result.error);
     });
   }
 
   return (
     <div>
+      {actionError && (
+        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          {actionError}
+        </p>
+      )}
       <div className="mb-4 flex flex-wrap gap-2">
         {(Object.keys(PAGE_TYPE_META) as FunnelPageType[]).map((type) => {
           const meta = PAGE_TYPE_META[type];

@@ -35,6 +35,7 @@ export function RoutingRulesView({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<RoutingRule | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   function openCreate() {
     setEditingRule(null);
@@ -47,20 +48,29 @@ export function RoutingRulesView({
   }
 
   function toggleActive(rule: RoutingRule) {
+    setActionError(null);
     startTransition(async () => {
-      await setRoutingRuleActive(rule.id, !rule.is_active);
+      const result = await setRoutingRuleActive(rule.id, !rule.is_active);
+      if (result.error) setActionError(result.error);
     });
   }
 
   function handleDelete(rule: RoutingRule) {
     if (!confirm(`Delete "${rule.name}"? This can't be undone.`)) return;
+    setActionError(null);
     startTransition(async () => {
-      await deleteRoutingRule(rule.id);
+      const result = await deleteRoutingRule(rule.id);
+      if (result.error) setActionError(result.error);
     });
   }
 
   return (
     <div>
+      {actionError && (
+        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          {actionError}
+        </p>
+      )}
       <div className="mb-6 flex justify-end">
         <button
           onClick={openCreate}

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { NewFunnelButton } from "@/components/funnels/new-funnel-button";
+import { DeleteFunnelButton } from "@/components/funnels/delete-funnel-button";
 
 export default async function FunnelsPage() {
   const supabase = await createClient();
@@ -44,6 +45,7 @@ export default async function FunnelsPage() {
                 <th className="px-4 py-3 font-medium">Views</th>
                 <th className="px-4 py-3 font-medium">Submissions</th>
                 <th className="px-4 py-3 font-medium">Updated</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -72,6 +74,9 @@ export default async function FunnelsPage() {
                   <td className="px-4 py-3">{funnel.submissions}</td>
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                     {new Date(funnel.updated_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <DeleteFunnelButton funnelId={funnel.id} name={funnel.name} />
                   </td>
                 </tr>
               ))}

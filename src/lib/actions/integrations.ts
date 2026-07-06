@@ -125,13 +125,15 @@ export async function deleteIntegration(integrationId: string): Promise<ActionRe
   const orgId = await getCurrentOrgId(supabase);
   if (!orgId) return { error: "Not authenticated." };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("integrations")
     .delete()
     .eq("id", integrationId)
-    .eq("org_id", orgId);
+    .eq("org_id", orgId)
+    .select("id");
 
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "Integration not found or already deleted." };
 
   revalidatePath("/integrations");
   return { id: integrationId };

@@ -28,6 +28,7 @@ export function BuyersView({
   const [editingBuyer, setEditingBuyer] = useState<Buyer | null>(null);
   const [statsBuyer, setStatsBuyer] = useState<Buyer | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   function openCreate() {
     setEditingBuyer(null);
@@ -40,20 +41,29 @@ export function BuyersView({
   }
 
   function toggleStatus(buyer: Buyer) {
+    setActionError(null);
     startTransition(async () => {
-      await setBuyerStatus(buyer.id, buyer.status === "active" ? "paused" : "active");
+      const result = await setBuyerStatus(buyer.id, buyer.status === "active" ? "paused" : "active");
+      if (result.error) setActionError(result.error);
     });
   }
 
   function handleDelete(buyer: Buyer) {
     if (!confirm(`Delete ${buyer.name}? This can't be undone.`)) return;
+    setActionError(null);
     startTransition(async () => {
-      await deleteBuyer(buyer.id);
+      const result = await deleteBuyer(buyer.id);
+      if (result.error) setActionError(result.error);
     });
   }
 
   return (
     <div>
+      {actionError && (
+        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          {actionError}
+        </p>
+      )}
       <div className="mb-6 flex justify-end">
         <button
           onClick={openCreate}

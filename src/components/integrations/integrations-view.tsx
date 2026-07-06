@@ -31,17 +31,28 @@ export function IntegrationsView({
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   function handleDelete(integration: Integration) {
     if (!confirm(`Delete ${integration.name}?`)) return;
+    setActionError(null);
     startTransition(async () => {
-      await deleteIntegration(integration.id);
+      const result = await deleteIntegration(integration.id);
+      if (result.error) {
+        setActionError(result.error);
+        return;
+      }
       router.refresh();
     });
   }
 
   return (
     <div>
+      {actionError && (
+        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          {actionError}
+        </p>
+      )}
       <div className="mb-6 flex justify-end">
         <NewIntegrationButton funnels={funnels} onCreated={() => router.refresh()} />
       </div>

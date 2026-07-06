@@ -138,13 +138,15 @@ export async function deleteRoutingRule(ruleId: string): Promise<RoutingRuleActi
   const orgId = await assertRuleOwnership(supabase, ruleId);
   if (!orgId) return { error: "Not authorized." };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("routing_rules")
     .delete()
     .eq("id", ruleId)
-    .eq("org_id", orgId);
+    .eq("org_id", orgId)
+    .select("id");
 
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "Rule not found or already deleted." };
 
   revalidatePath("/routing-rules");
   return { ruleId };

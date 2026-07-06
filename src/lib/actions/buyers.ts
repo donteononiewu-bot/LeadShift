@@ -170,13 +170,15 @@ export async function deleteBuyer(buyerId: string): Promise<BuyerActionResult> {
   const orgId = await getCurrentOrgId(supabase);
   if (!orgId) return { error: "Not authenticated." };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("buyers")
     .delete()
     .eq("id", buyerId)
-    .eq("org_id", orgId);
+    .eq("org_id", orgId)
+    .select("id");
 
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "Buyer not found or already deleted." };
 
   revalidatePath("/buyers");
   return { buyerId };

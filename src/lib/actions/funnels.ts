@@ -117,8 +117,17 @@ export async function deleteFunnel(funnelId: string): Promise<ActionResult> {
   const orgId = await getCurrentOrgId(supabase);
   if (!orgId) return { error: "Not authenticated." };
 
-  const { error } = await supabase.from("funnels").delete().eq("id", funnelId).eq("org_id", orgId);
+  const { data, error } = await supabase
+    .from("funnels")
+    .delete()
+    .eq("id", funnelId)
+    .eq("org_id", orgId)
+    .select("id");
   if (error) return { error: error.message };
+  // A 0-row delete (e.g. RLS silently rejecting it) reports no error at
+  // all — check the row actually came back, or the caller sees "success"
+  // for a delete that didn't happen and the item reappears on refresh.
+  if (!data || data.length === 0) return { error: "Funnel not found or already deleted." };
 
   revalidatePath("/funnels");
   return { id: funnelId };
@@ -214,8 +223,14 @@ export async function deleteFunnelPage(pageId: string, funnelId: string): Promis
   const supabase = await createClient();
   if (!(await assertFunnelOwnership(supabase, funnelId))) return { error: "Not authorized." };
 
-  const { error } = await supabase.from("funnel_pages").delete().eq("id", pageId).eq("funnel_id", funnelId);
+  const { data, error } = await supabase
+    .from("funnel_pages")
+    .delete()
+    .eq("id", pageId)
+    .eq("funnel_id", funnelId)
+    .select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "Page not found or already deleted." };
 
   revalidatePath(`/funnels/${funnelId}`);
   return { id: pageId };
@@ -380,8 +395,13 @@ export async function deleteFunnelQuestion(questionId: string, funnelId: string)
     return { error: "That question doesn't belong to this funnel." };
   }
 
-  const { error } = await supabase.from("funnel_questions").delete().eq("id", questionId);
+  const { data, error } = await supabase
+    .from("funnel_questions")
+    .delete()
+    .eq("id", questionId)
+    .select("id");
   if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "Question not found or already deleted." };
 
   revalidatePath(`/funnels/${funnelId}`);
   return { id: questionId };

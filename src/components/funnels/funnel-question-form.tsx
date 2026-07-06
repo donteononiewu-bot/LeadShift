@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
   createFunnelQuestion,
   updateFunnelQuestion,
+  deleteFunnelQuestion,
   type FunnelQuestionValues,
 } from "@/lib/actions/funnels";
 import type { FunnelQuestionType } from "@/lib/types/database";
@@ -64,7 +66,9 @@ export function FunnelQuestionForm({
   const [leadFieldMapping, setLeadFieldMapping] = useState(question?.lead_field_mapping ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const typeMeta = QUESTION_TYPES.find((t) => t.value === questionType)!;
 
@@ -113,6 +117,20 @@ export function FunnelQuestionForm({
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function handleDelete() {
+    if (!question) return;
+    if (!confirm("Delete this question?")) return;
+    setDeleting(true);
+    setError(null);
+    const result = await deleteFunnelQuestion(question.id, funnelId);
+    setDeleting(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
   }
 
   return (
@@ -225,6 +243,16 @@ export function FunnelQuestionForm({
         >
           {saving ? "Saving..." : question ? "Update question" : "Create question"}
         </button>
+        {question && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {deleting ? "Deleting..." : "Delete question"}
+          </button>
+        )}
         {saved && <span className="text-xs text-green-600 dark:text-green-400">Saved</span>}
       </div>
     </div>
