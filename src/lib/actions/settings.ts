@@ -29,13 +29,13 @@ export async function updateOrganization(
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("users")
     .select("org_id")
     .eq("id", user.id)
     .single();
 
   if (!profile) {
-    return { error: "Profile not found." };
+    return { error: "User not found." };
   }
 
   const { error } = await supabase

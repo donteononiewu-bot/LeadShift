@@ -1,5 +1,5 @@
 -- On signup, create the user's organization (from metadata passed at
--- signup time) and their profile as 'owner' in one transaction.
+-- signup time) and their user row as 'owner' in one transaction.
 create or replace function handle_new_user()
 returns trigger
 language plpgsql
@@ -18,7 +18,7 @@ begin
   values (org_name, org_slug)
   returning id into new_org_id;
 
-  insert into profiles (id, org_id, full_name, email, role)
+  insert into users (id, org_id, full_name, email, role)
   values (
     new.id,
     new_org_id,

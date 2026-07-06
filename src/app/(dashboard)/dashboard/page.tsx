@@ -35,11 +35,11 @@ export default async function DashboardPage() {
       .eq("status", "active"),
     supabase
       .from("leads")
-      .select("id, first_name, last_name, state, source, status, intent_score, created_at")
+      .select("id, name, state, source, status, intent_score, created_at")
       .order("created_at", { ascending: false })
       .limit(6),
     supabase
-      .from("system_events")
+      .from("system_logs")
       .select("id, message, severity, created_at")
       .order("created_at", { ascending: false })
       .limit(6),
@@ -95,9 +95,7 @@ export default async function DashboardPage() {
                 >
                   <div>
                     <p className="font-medium text-slate-900 dark:text-white">
-                      {[lead.first_name, lead.last_name]
-                        .filter(Boolean)
-                        .join(" ") || "Unknown"}
+                      {lead.name || "Unknown"}
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       {lead.state ?? "—"} &middot; {lead.source}

@@ -15,7 +15,7 @@ create table if not exists organizations (
 create type user_role as enum ('owner', 'admin', 'member');
 
 -- One row per auth.users, extending it with org membership + role.
-create table if not exists profiles (
+create table if not exists users (
   id uuid primary key references auth.users(id) on delete cascade,
   org_id uuid not null references organizations(id) on delete cascade,
   full_name text,
@@ -25,9 +25,9 @@ create table if not exists profiles (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists profiles_org_id_idx on profiles(org_id);
+create index if not exists users_org_id_idx on users(org_id);
 
--- Convenience view/function: which org is the currently authenticated user in.
+-- Convenience function: which org is the currently authenticated user in.
 create or replace function auth_org_id()
 returns uuid
 language sql
@@ -35,7 +35,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select org_id from profiles where id = auth.uid()
+  select org_id from users where id = auth.uid()
 $$;
 
 create or replace function set_updated_at()
@@ -52,6 +52,6 @@ create trigger organizations_set_updated_at
   before update on organizations
   for each row execute function set_updated_at();
 
-create trigger profiles_set_updated_at
-  before update on profiles
+create trigger users_set_updated_at
+  before update on users
   for each row execute function set_updated_at();

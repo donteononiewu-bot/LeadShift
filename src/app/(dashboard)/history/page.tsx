@@ -8,7 +8,7 @@ export default async function SystemHistoryPage() {
   const supabase = await createClient();
 
   const { data: events } = await supabase
-    .from("system_events")
+    .from("system_logs")
     .select("id, severity, entity_type, event_type, message, created_at")
     .order("created_at", { ascending: false })
     .limit(100);

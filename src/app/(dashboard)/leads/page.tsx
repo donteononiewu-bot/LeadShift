@@ -11,6 +11,7 @@ const STATUS_TONE: Record<string, "slate" | "green" | "red" | "amber" | "brand">
   sold: "green",
   rejected: "red",
   failed: "red",
+  unmatched: "amber",
 };
 
 export default async function LeadsPage() {
@@ -19,7 +20,7 @@ export default async function LeadsPage() {
   const { data: leads } = await supabase
     .from("leads")
     .select(
-      "id, first_name, last_name, email, phone, state, source, status, intent_score, product_type, created_at, buyers:assigned_buyer_id(name)"
+      "id, name, email, phone, state, source, status, intent_score, product_type, duplicate_status, created_at, buyers:assigned_buyer_id(name)"
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -43,6 +44,7 @@ export default async function LeadsPage() {
                 <th className="px-4 py-3 font-medium">Intent</th>
                 <th className="px-4 py-3 font-medium">Buyer</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Duplicate</th>
                 <th className="px-4 py-3 font-medium">Captured</th>
               </tr>
             </thead>
@@ -50,8 +52,7 @@ export default async function LeadsPage() {
               {leads.map((lead) => (
                 <tr key={lead.id}>
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                    {[lead.first_name, lead.last_name].filter(Boolean).join(" ") ||
-                      "Unknown"}
+                    {lead.name || "Unknown"}
                   </td>
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                     {lead.email || lead.phone || "—"}
@@ -69,6 +70,19 @@ export default async function LeadsPage() {
                     <Badge tone={STATUS_TONE[lead.status] ?? "slate"}>
                       {lead.status}
                     </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    {lead.duplicate_status === "unique" ? (
+                      "—"
+                    ) : (
+                      <Badge
+                        tone={
+                          lead.duplicate_status === "duplicate" ? "red" : "amber"
+                        }
+                      >
+                        {lead.duplicate_status.replace("_", " ")}
+                      </Badge>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                     {new Date(lead.created_at).toLocaleString()}
