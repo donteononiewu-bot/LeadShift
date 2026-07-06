@@ -523,6 +523,7 @@ export interface Database {
         Row: {
           id: string;
           org_id: string;
+          funnel_id: string | null;
           type: IntegrationType;
           name: string;
           status: IntegrationStatus;
@@ -545,6 +546,13 @@ export interface Database {
             columns: ["org_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "integrations_funnel_id_fkey";
+            columns: ["funnel_id"];
+            isOneToOne: false;
+            referencedRelation: "funnels";
             referencedColumns: ["id"];
           },
         ];
