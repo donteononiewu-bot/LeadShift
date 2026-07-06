@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ListChecks, Plus, Sparkles } from "lucide-react";
+import { ListChecks, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { NewFunnelButton } from "@/components/funnels/new-funnel-button";
 
 export default async function FunnelsPage() {
   const supabase = await createClient();
@@ -27,10 +28,7 @@ export default async function FunnelsPage() {
               <Sparkles className="h-4 w-4" />
               Build with AI
             </Link>
-            <button className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700">
-              <Plus className="h-4 w-4" />
-              New funnel
-            </button>
+            <NewFunnelButton />
           </div>
         }
       />
@@ -50,14 +48,17 @@ export default async function FunnelsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {funnels.map((funnel) => (
-                <tr key={funnel.id}>
+                <tr key={funnel.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                    <div className="flex items-center gap-2">
+                    <Link
+                      href={`/funnels/${funnel.id}`}
+                      className="flex items-center gap-2 hover:underline"
+                    >
                       {funnel.name}
                       {funnel.ai_generated && (
                         <Sparkles className="h-3.5 w-3.5 text-brand-500" />
                       )}
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 capitalize">{funnel.type}</td>
                   <td className="px-4 py-3">

@@ -223,7 +223,8 @@ export interface Database {
           logo_url: string | null;
           favicon_url: string | null;
           meta_pixel_id: string | null;
-          custom_scripts: string | null;
+          custom_head_script: string | null;
+          custom_body_script: string | null;
           ai_generated: boolean;
           ai_prompt: string | null;
           views: number;
@@ -392,6 +393,7 @@ export interface Database {
           utm_content: string | null;
           started_at: string;
           completed_at: string | null;
+          redirected_at: string | null;
           created_at: string;
         };
         Insert: Partial<
@@ -626,6 +628,10 @@ export interface Database {
     Functions: {
       increment_buyer_counts: {
         Args: { p_buyer_id: string };
+        Returns: void;
+      };
+      increment_funnel_views: {
+        Args: { p_funnel_id: string };
         Returns: void;
       };
     };

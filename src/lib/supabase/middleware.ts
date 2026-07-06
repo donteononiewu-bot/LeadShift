@@ -39,7 +39,8 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute =
     PUBLIC_ROUTES.includes(pathname) ||
     pathname.startsWith("/api/webhooks") ||
-    pathname.startsWith("/api/auth");
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/f/");
 
   if (!user && !isPublicRoute) {
     const redirectUrl = request.nextUrl.clone();
