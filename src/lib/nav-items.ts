@@ -9,6 +9,7 @@ import {
   History,
   Plug,
   Settings,
+  FlaskConical,
 } from "lucide-react";
 
 export interface NavItem {
@@ -17,7 +18,7 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
-export const NAV_ITEMS: NavItem[] = [
+const BASE_NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Leads", href: "/leads", icon: Users },
   { label: "Buyers", href: "/buyers", icon: Building2 },
@@ -28,3 +29,9 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Integrations", href: "/integrations", icon: Plug },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
+
+// Dev tools can create/delete data at will, so keep it out of production navs.
+export const NAV_ITEMS: NavItem[] =
+  process.env.NODE_ENV === "production"
+    ? BASE_NAV_ITEMS
+    : [...BASE_NAV_ITEMS, { label: "Dev Tools", href: "/dev", icon: FlaskConical }];
