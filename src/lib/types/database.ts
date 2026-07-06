@@ -46,7 +46,8 @@ export type RoutingOutcome =
   | "rejected_availability"
   | "rejected_paused"
   | "delivery_failed"
-  | "delivery_success";
+  | "delivery_success"
+  | "no_buyers_matched";
 export type RoutingStrategy = "round_robin" | "weighted" | "priority" | "ai_match";
 export type IntegrationType = "zapier" | "meta_lead_ads" | "webhook" | "crm";
 export type IntegrationStatus = "connected" | "disconnected" | "error";

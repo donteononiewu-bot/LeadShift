@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrgId } from "@/lib/supabase/org";
 
 export interface SettingsFormState {
   error?: string;
@@ -20,28 +21,16 @@ export async function updateOrganization(
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const orgId = await getCurrentOrgId(supabase);
 
-  if (!user) {
+  if (!orgId) {
     return { error: "Not authenticated." };
-  }
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("org_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile) {
-    return { error: "User not found." };
   }
 
   const { error } = await supabase
     .from("organizations")
     .update({ name, timezone })
-    .eq("id", profile.org_id);
+    .eq("id", orgId);
 
   if (error) {
     return { error: error.message };
