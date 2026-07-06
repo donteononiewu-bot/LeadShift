@@ -279,7 +279,9 @@ export interface Database {
           funnel_page_id: string;
           question_text: string;
           question_type: FunnelQuestionType;
-          options: Array<{ label: string; value: string }>;
+          // weight (optional) feeds the intent scoring engine: picking this
+          // option adds/subtracts that many points from the lead's score.
+          options: Array<{ label: string; value: string; weight?: number }>;
           is_required: boolean;
           position: number;
           lead_field_mapping: string | null;
@@ -620,6 +622,11 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      increment_buyer_counts: {
+        Args: { p_buyer_id: string };
+        Returns: void;
+      };
+    };
   };
 }
