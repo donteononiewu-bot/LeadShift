@@ -47,6 +47,7 @@ const OUTCOME_TONE: Record<RoutingOutcome, "green" | "red" | "amber" | "slate"> 
   rejected_availability: "slate",
   rejected_paused: "slate",
   no_buyers_matched: "red",
+  not_selected: "slate",
 };
 
 export function DevToolsView({

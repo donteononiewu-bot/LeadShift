@@ -18,6 +18,7 @@ export default async function DashboardPage() {
     { count: activeBuyers },
     { data: recentLeads },
     { data: recentEvents },
+    { data: routingDurationsToday },
   ] = await Promise.all([
     supabase.from("leads").select("id", { count: "exact", head: true }),
     supabase
@@ -43,9 +44,21 @@ export default async function DashboardPage() {
       .select("id, message, severity, created_at")
       .order("created_at", { ascending: false })
       .limit(6),
+    supabase
+      .from("leads")
+      .select("routing_duration_ms")
+      .eq("status", "routed")
+      .gte("routed_at", startOfToday.toISOString())
+      .not("routing_duration_ms", "is", null),
   ]);
 
-  const avgRoutingMs = 0; // populated once live routing attempts accumulate
+  const durations = (routingDurationsToday ?? [])
+    .map((l) => l.routing_duration_ms)
+    .filter((ms): ms is number => ms !== null);
+  const avgRoutingMs =
+    durations.length > 0
+      ? Math.round(durations.reduce((sum, ms) => sum + ms, 0) / durations.length)
+      : 0;
 
   return (
     <div>

@@ -64,7 +64,11 @@ export function FunnelRuntime({
       utmTerm: searchParams.get("utm_term"),
       utmContent: searchParams.get("utm_content"),
     }).then((res) => {
-      if ("submissionId" in res) setSubmissionId(res.submissionId);
+      if ("submissionId" in res) {
+        setSubmissionId(res.submissionId);
+      } else {
+        setError(res.error);
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -87,21 +91,27 @@ export function FunnelRuntime({
   }
 
   async function handleContactSubmit() {
-    if (!submissionId) return;
-    setSubmitting(true);
-    setError(null);
-    const res = await completeFunnelSubmission(submissionId, contact);
-    setSubmitting(false);
-
-    if ("error" in res) {
-      setError(res.error);
+    if (!submissionId) {
+      setError("This funnel didn't start correctly — please refresh and try again.");
       return;
     }
-
-    setResult(res);
-    fireMetaPixelEvent("Lead");
-    fireMetaPixelEvent("CompleteRegistration");
-    goNext();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await completeFunnelSubmission(submissionId, contact);
+      if ("error" in res) {
+        setError(res.error);
+        return;
+      }
+      setResult(res);
+      fireMetaPixelEvent("Lead");
+      fireMetaPixelEvent("CompleteRegistration");
+      goNext();
+    } catch {
+      setError("Something went wrong submitting your answers. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -158,6 +168,7 @@ export function FunnelRuntime({
 
         {page.page_type === "question" && (
           <QuestionPage
+            key={page.id}
             question={questionsByPage[page.id]?.[0]}
             color={funnel.primary_color}
             onAnswer={handleQuestionAnswer}

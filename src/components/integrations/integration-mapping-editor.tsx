@@ -32,7 +32,7 @@ export function IntegrationMappingEditor({
     fieldMapping?: Record<string, string>;
     requiredFields?: string[];
     pageId?: string;
-    pageAccessToken?: string;
+    hasPageAccessToken?: boolean;
   };
 
   const [name, setName] = useState(integration.name);
@@ -44,7 +44,10 @@ export function IntegrationMappingEditor({
     (config.requiredFields ?? []).join(", ")
   );
   const [pageId, setPageId] = useState(config.pageId ?? "");
-  const [pageAccessToken, setPageAccessToken] = useState(config.pageAccessToken ?? "");
+  // Never prefilled with the real secret — the server only ever sends a
+  // hasPageAccessToken flag. Leaving this blank keeps whatever token (if
+  // any) is already stored; typing a new value replaces it.
+  const [pageAccessToken, setPageAccessToken] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,13 +63,16 @@ export function IntegrationMappingEditor({
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
-      ...(integration.type === "meta_lead_ads" ? { pageId, pageAccessToken } : {}),
+      ...(integration.type === "meta_lead_ads"
+        ? { pageId, ...(pageAccessToken ? { pageAccessToken } : {}) }
+        : {}),
     });
     setSaving(false);
     if (result.error) {
       setError(result.error);
       return;
     }
+    setPageAccessToken("");
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -79,7 +85,7 @@ export function IntegrationMappingEditor({
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-500">Name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
@@ -104,7 +110,7 @@ export function IntegrationMappingEditor({
       </div>
 
       {integration.type === "meta_lead_ads" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">
               Facebook Page ID
@@ -119,6 +125,7 @@ export function IntegrationMappingEditor({
               type="password"
               value={pageAccessToken}
               onChange={(e) => setPageAccessToken(e.target.value)}
+              placeholder={config.hasPageAccessToken ? "•••••••• (leave blank to keep)" : ""}
               className={inputClass}
             />
           </div>

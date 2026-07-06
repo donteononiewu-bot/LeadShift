@@ -47,7 +47,8 @@ export type RoutingOutcome =
   | "rejected_paused"
   | "delivery_failed"
   | "delivery_success"
-  | "no_buyers_matched";
+  | "no_buyers_matched"
+  | "not_selected";
 export type RoutingStrategy = "round_robin" | "weighted" | "priority" | "ai_match";
 export type IntegrationType = "zapier" | "meta_lead_ads" | "webhook" | "crm";
 export type IntegrationStatus = "connected" | "disconnected" | "error";
@@ -641,6 +642,10 @@ export interface Database {
       increment_funnel_views: {
         Args: { p_funnel_id: string };
         Returns: void;
+      };
+      try_claim_buyer_capacity: {
+        Args: { p_buyer_id: string };
+        Returns: boolean;
       };
     };
   };

@@ -140,7 +140,12 @@ export function FunnelPagesEditor({
                       onClick={() => move(page.id, "down")}
                       disabled={index === pages.length - 1 || isPending}
                     />
-                    <IconBtn icon={Trash2} onClick={() => remove(page.id)} danger />
+                    <IconBtn
+                      icon={Trash2}
+                      onClick={() => remove(page.id)}
+                      disabled={isPending}
+                      danger
+                    />
                   </div>
                 </div>
 

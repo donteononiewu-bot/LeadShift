@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, LeadDuplicateStatus } from "@/lib/types/database";
+import { logSystemEvent } from "./logging";
 
 const RECENT_RESUBMISSION_WINDOW_MS = 5 * 60 * 1000;
 
@@ -40,19 +41,57 @@ export async function findDuplicate(
     return { status: "unique", duplicateOfLeadId: null, isRecentResubmission: false };
   }
 
-  const orFilters: string[] = [];
-  if (email) orFilters.push(`email.eq.${email}`);
-  if (phone) orFilters.push(`phone.eq.${phone}`);
+  // Two separate parameterized queries rather than a hand-built PostgREST
+  // `.or()` filter string — email/phone come from untrusted external
+  // payloads, and values containing a comma or parenthesis would otherwise
+  // break (or be mis-parsed by) the `.or()` mini-language.
+  const [emailResult, phoneResult] = await Promise.all([
+    email
+      ? admin
+          .from("leads")
+          .select("id, email, phone, created_at")
+          .eq("org_id", orgId)
+          .eq("email", email)
+          .order("created_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [], error: null }),
+    phone
+      ? admin
+          .from("leads")
+          .select("id, email, phone, created_at")
+          .eq("org_id", orgId)
+          .eq("phone", phone)
+          .order("created_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
-  const { data: matches } = await admin
-    .from("leads")
-    .select("id, email, phone, created_at")
-    .eq("org_id", orgId)
-    .or(orFilters.join(","))
-    .order("created_at", { ascending: false })
-    .limit(5);
+  if (emailResult.error || phoneResult.error) {
+    // Blocking the whole lead capture on a transient dedup-check failure
+    // would be worse than occasionally missing a duplicate, but silently
+    // reporting "unique" with no trace is exactly the bug being fixed here
+    // — log it so a spike in lookup failures is visible in System History.
+    await logSystemEvent(admin, {
+      orgId,
+      severity: "error",
+      entityType: "lead",
+      eventType: "dedupe.lookup_failed",
+      message: `Duplicate lookup failed, treating as unique: ${
+        emailResult.error?.message ?? phoneResult.error?.message
+      }`,
+    });
+    return { status: "unique", duplicateOfLeadId: null, isRecentResubmission: false };
+  }
 
-  if (!matches || matches.length === 0) {
+  const byId = new Map<string, { id: string; email: string | null; phone: string | null; created_at: string }>();
+  for (const row of [...(emailResult.data ?? []), ...(phoneResult.data ?? [])]) {
+    byId.set(row.id, row);
+  }
+  const matches = Array.from(byId.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  if (matches.length === 0) {
     return { status: "unique", duplicateOfLeadId: null, isRecentResubmission: false };
   }
 

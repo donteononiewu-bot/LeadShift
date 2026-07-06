@@ -247,6 +247,36 @@ export interface FunnelQuestionValues {
   leadFieldMapping: string;
 }
 
+/** Confirms `pageId` is actually a page of `funnelId` (not just any page the org owns). */
+async function assertPageInFunnel(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  pageId: string,
+  funnelId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("funnel_pages")
+    .select("id")
+    .eq("id", pageId)
+    .eq("funnel_id", funnelId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/** Confirms `questionId`'s parent page belongs to `funnelId`. */
+async function assertQuestionInFunnel(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  questionId: string,
+  funnelId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("funnel_questions")
+    .select("id, funnel_pages!inner(funnel_id)")
+    .eq("id", questionId)
+    .eq("funnel_pages.funnel_id", funnelId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 export async function createFunnelQuestion(
   pageId: string,
   funnelId: string,
@@ -254,6 +284,9 @@ export async function createFunnelQuestion(
 ): Promise<ActionResult> {
   const supabase = await createClient();
   if (!(await assertFunnelOwnership(supabase, funnelId))) return { error: "Not authorized." };
+  if (!(await assertPageInFunnel(supabase, pageId, funnelId))) {
+    return { error: "That page doesn't belong to this funnel." };
+  }
 
   const { data: questions } = await supabase
     .from("funnel_questions")
@@ -291,6 +324,9 @@ export async function updateFunnelQuestion(
 ): Promise<ActionResult> {
   const supabase = await createClient();
   if (!(await assertFunnelOwnership(supabase, funnelId))) return { error: "Not authorized." };
+  if (!(await assertQuestionInFunnel(supabase, questionId, funnelId))) {
+    return { error: "That question doesn't belong to this funnel." };
+  }
 
   const { error } = await supabase
     .from("funnel_questions")
@@ -312,6 +348,9 @@ export async function updateFunnelQuestion(
 export async function deleteFunnelQuestion(questionId: string, funnelId: string): Promise<ActionResult> {
   const supabase = await createClient();
   if (!(await assertFunnelOwnership(supabase, funnelId))) return { error: "Not authorized." };
+  if (!(await assertQuestionInFunnel(supabase, questionId, funnelId))) {
+    return { error: "That question doesn't belong to this funnel." };
+  }
 
   const { error } = await supabase.from("funnel_questions").delete().eq("id", questionId);
   if (error) return { error: error.message };

@@ -212,17 +212,122 @@ export async function routeLead(input: RouteLeadInput): Promise<RouteLeadResult>
   }
 
   const strategy = matchedRule?.strategy ?? "priority";
-  const { buyer, explanation } = selectBuyer(eligible, strategy, intentScore);
 
-  // Log every buyer considered: rejections first, then the winning pick.
-  const events = rejected.map((r, i) => ({
-    lead_id: leadId,
-    buyer_id: r.buyerId,
-    routing_rule_id: matchedRule?.id ?? null,
-    attempt_order: i + 1,
-    outcome: r.outcome,
-    explanation: r.explanation,
-  }));
+  // Cap checks above were against a snapshot fetched at the top of this
+  // call, which two concurrent leads could both pass for the same buyer's
+  // last remaining slot. try_claim_buyer_capacity folds the cap check into
+  // the same atomic UPDATE as the increment; if it loses the race, drop
+  // that buyer and let the strategy pick again among what's left.
+  let winner: { buyer: (typeof eligible)[number]; explanation: string } | null = null;
+  let candidates = eligible;
+  const raceLosses: RejectedBuyer[] = [];
+
+  while (candidates.length > 0 && !winner) {
+    const picked = selectBuyer(candidates, strategy, intentScore);
+    const { data: claimed } = await admin.rpc("try_claim_buyer_capacity", {
+      p_buyer_id: picked.buyer.id,
+    });
+
+    if (claimed) {
+      winner = picked;
+    } else {
+      raceLosses.push({
+        buyerId: picked.buyer.id,
+        outcome: "rejected_cap",
+        explanation: `${picked.buyer.name} hit its cap in a concurrent routing decision.`,
+      });
+      candidates = candidates.filter((b) => b.id !== picked.buyer.id);
+    }
+  }
+
+  const routingDurationMs = Date.now() - startedAt;
+
+  if (!winner) {
+    await admin
+      .from("leads")
+      .update({ status: "unmatched", routing_duration_ms: routingDurationMs })
+      .eq("id", leadId);
+
+    await admin.from("routing_events").insert([
+      ...rejected.map((r, i) => ({
+        lead_id: leadId,
+        buyer_id: r.buyerId,
+        routing_rule_id: matchedRule?.id ?? null,
+        attempt_order: i + 1,
+        outcome: r.outcome,
+        explanation: r.explanation,
+      })),
+      ...raceLosses.map((r, i) => ({
+        lead_id: leadId,
+        buyer_id: r.buyerId,
+        routing_rule_id: matchedRule?.id ?? null,
+        attempt_order: rejected.length + i + 1,
+        outcome: r.outcome,
+        explanation: r.explanation,
+      })),
+      {
+        lead_id: leadId,
+        buyer_id: null,
+        routing_rule_id: matchedRule?.id ?? null,
+        attempt_order: rejected.length + raceLosses.length + 1,
+        outcome: "no_buyers_matched" as RoutingOutcome,
+        explanation: "Every eligible buyer lost the race for the last slot in their cap.",
+      },
+    ]);
+
+    await logSystemEvent(admin, {
+      orgId: input.orgId,
+      severity: "warning",
+      entityType: "lead",
+      entityId: leadId,
+      eventType: "lead.unmatched",
+      message: "All eligible buyers hit their cap in a concurrent routing decision.",
+    });
+
+    return {
+      leadId,
+      status: "unmatched",
+      assignedBuyerId: null,
+      bookingCalendarUrl: null,
+      intentScore,
+      duplicateStatus: duplicate.status,
+      routingDurationMs,
+    };
+  }
+
+  const { buyer, explanation } = winner;
+  const notSelected = eligible.filter(
+    (b) => b.id !== buyer.id && !raceLosses.some((r) => r.buyerId === b.id)
+  );
+
+  // Log every buyer considered: filtered-out rejections, cap-race losses,
+  // eligible-but-not-chosen buyers, then the winner — full audit trail.
+  const events = [
+    ...rejected.map((r, i) => ({
+      lead_id: leadId,
+      buyer_id: r.buyerId,
+      routing_rule_id: matchedRule?.id ?? null,
+      attempt_order: i + 1,
+      outcome: r.outcome,
+      explanation: r.explanation,
+    })),
+    ...raceLosses.map((r, i) => ({
+      lead_id: leadId,
+      buyer_id: r.buyerId,
+      routing_rule_id: matchedRule?.id ?? null,
+      attempt_order: rejected.length + i + 1,
+      outcome: r.outcome,
+      explanation: r.explanation,
+    })),
+    ...notSelected.map((b, i) => ({
+      lead_id: leadId,
+      buyer_id: b.id,
+      routing_rule_id: matchedRule?.id ?? null,
+      attempt_order: rejected.length + raceLosses.length + i + 1,
+      outcome: "not_selected" as RoutingOutcome,
+      explanation: `${b.name} was eligible but not selected by the ${strategy} strategy.`,
+    })),
+  ];
   events.push({
     lead_id: leadId,
     buyer_id: buyer.id,
@@ -233,9 +338,6 @@ export async function routeLead(input: RouteLeadInput): Promise<RouteLeadResult>
   });
   await admin.from("routing_events").insert(events);
 
-  await admin.rpc("increment_buyer_counts", { p_buyer_id: buyer.id });
-
-  const routingDurationMs = Date.now() - startedAt;
   await admin
     .from("leads")
     .update({
@@ -265,16 +367,13 @@ export async function routeLead(input: RouteLeadInput): Promise<RouteLeadResult>
     });
   }
 
-  // Delivery happens after the routing decision is durable, so a slow/dead
-  // buyer endpoint can't delay the response the caller is waiting on for
-  // the booking redirect.
-  const { data: deliveryMethods } = await admin
-    .from("buyer_delivery_methods")
-    .select("*")
-    .eq("buyer_id", buyer.id)
-    .eq("is_active", true);
-
-  const delivery = await deliverLead(buyer, deliveryMethods ?? [], {
+  // Delivery is intentionally NOT awaited: a slow/dead buyer webhook must
+  // never delay the response the caller is blocking on for the booking
+  // redirect. On a long-running Node server this promise still runs to
+  // completion in the background; on a platform that freezes execution
+  // the instant the response is sent (e.g. Vercel serverless functions),
+  // swap this for a queue (Vercel's waitUntil, QStash, etc.) instead.
+  deliverAndLog(admin, buyer, leadId, matchedRule?.id ?? null, events.length + 1, input.orgId, {
     leadId,
     name: input.name ?? null,
     email,
@@ -285,34 +384,9 @@ export async function routeLead(input: RouteLeadInput): Promise<RouteLeadResult>
     answers: input.answers ?? {},
     source: input.source,
     createdAt: new Date().toISOString(),
+  }).catch((err) => {
+    console.error("Lead delivery failed unexpectedly:", err);
   });
-
-  if (delivery.attempts.length > 0) {
-    await admin.from("routing_events").insert({
-      lead_id: leadId,
-      buyer_id: buyer.id,
-      routing_rule_id: matchedRule?.id ?? null,
-      attempt_order: events.length + 1,
-      outcome: delivery.anySuccess ? "delivery_success" : "delivery_failed",
-      explanation: delivery.attempts
-        .map(
-          (a) =>
-            `${a.method} ${a.success ? "succeeded" : `failed${a.retried ? " after retry" : ""}${a.error ? `: ${a.error}` : ""}`}`
-        )
-        .join("; "),
-    });
-
-    await logSystemEvent(admin, {
-      orgId: input.orgId,
-      severity: delivery.anySuccess ? "info" : "error",
-      entityType: "lead",
-      entityId: leadId,
-      eventType: delivery.anySuccess ? "lead.delivered" : "lead.delivery_failed",
-      message: `Delivery to ${buyer.name}: ${delivery.attempts
-        .map((a) => `${a.method} ${a.success ? "ok" : "failed"}`)
-        .join(", ")}`,
-    });
-  }
 
   return {
     leadId,
@@ -323,6 +397,50 @@ export async function routeLead(input: RouteLeadInput): Promise<RouteLeadResult>
     duplicateStatus: duplicate.status,
     routingDurationMs,
   };
+}
+
+async function deliverAndLog(
+  admin: ReturnType<typeof createAdminClient>,
+  buyer: Database["public"]["Tables"]["buyers"]["Row"],
+  leadId: string,
+  routingRuleId: string | null,
+  attemptOrder: number,
+  orgId: string,
+  payload: Parameters<typeof deliverLead>[2]
+): Promise<void> {
+  const { data: deliveryMethods } = await admin
+    .from("buyer_delivery_methods")
+    .select("*")
+    .eq("buyer_id", buyer.id)
+    .eq("is_active", true);
+
+  const delivery = await deliverLead(buyer, deliveryMethods ?? [], payload);
+  if (delivery.attempts.length === 0) return;
+
+  await admin.from("routing_events").insert({
+    lead_id: leadId,
+    buyer_id: buyer.id,
+    routing_rule_id: routingRuleId,
+    attempt_order: attemptOrder,
+    outcome: delivery.anySuccess ? "delivery_success" : "delivery_failed",
+    explanation: delivery.attempts
+      .map(
+        (a) =>
+          `${a.method} ${a.success ? "succeeded" : `failed${a.retried ? " after retry" : ""}${a.error ? `: ${a.error}` : ""}`}`
+      )
+      .join("; "),
+  });
+
+  await logSystemEvent(admin, {
+    orgId,
+    severity: delivery.anySuccess ? "info" : "error",
+    entityType: "lead",
+    entityId: leadId,
+    eventType: delivery.anySuccess ? "lead.delivered" : "lead.delivery_failed",
+    message: `Delivery to ${buyer.name}: ${delivery.attempts
+      .map((a) => `${a.method} ${a.success ? "ok" : "failed"}`)
+      .join(", ")}`,
+  });
 }
 
 function summarizeRejections(rejected: RejectedBuyer[]): string {

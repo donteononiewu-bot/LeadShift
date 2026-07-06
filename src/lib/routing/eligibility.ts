@@ -97,24 +97,27 @@ export function filterEligibleBuyers(
       continue;
     }
 
-    if (buyer.states.length > 0 && lead.state && !buyer.states.includes(lead.state)) {
+    if (buyer.states.length > 0 && (!lead.state || !buyer.states.includes(lead.state))) {
       rejected.push({
         buyerId: buyer.id,
         outcome: "rejected_state",
-        explanation: `${buyer.name} doesn't accept leads from ${lead.state}.`,
+        explanation: lead.state
+          ? `${buyer.name} doesn't accept leads from ${lead.state}.`
+          : `${buyer.name} only accepts specific states, but this lead has no state on file.`,
       });
       continue;
     }
 
     if (
       buyer.product_types.length > 0 &&
-      lead.productType &&
-      !buyer.product_types.includes(lead.productType)
+      (!lead.productType || !buyer.product_types.includes(lead.productType))
     ) {
       rejected.push({
         buyerId: buyer.id,
         outcome: "rejected_state",
-        explanation: `${buyer.name} doesn't accept "${lead.productType}" leads.`,
+        explanation: lead.productType
+          ? `${buyer.name} doesn't accept "${lead.productType}" leads.`
+          : `${buyer.name} only accepts specific product types, but this lead has none on file.`,
       });
       continue;
     }

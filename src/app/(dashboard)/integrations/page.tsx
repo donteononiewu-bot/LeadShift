@@ -13,6 +13,17 @@ export default async function IntegrationsPage() {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+  // The Meta page access token is a real secret — never send its value to
+  // the browser. Replace it with a boolean flag the editor uses to render
+  // a "leave blank to keep existing" placeholder instead of the token.
+  const sanitizedIntegrations = (integrations ?? []).map((integration) => {
+    const config = { ...(integration.config as Record<string, unknown>) };
+    if (typeof config.pageAccessToken !== "string") return integration;
+    delete config.pageAccessToken;
+    config.hasPageAccessToken = true;
+    return { ...integration, config };
+  });
+
   return (
     <div>
       <PageHeader
@@ -21,7 +32,7 @@ export default async function IntegrationsPage() {
       />
 
       <IntegrationsView
-        integrations={integrations ?? []}
+        integrations={sanitizedIntegrations}
         funnels={funnels ?? []}
         appUrl={appUrl}
       />

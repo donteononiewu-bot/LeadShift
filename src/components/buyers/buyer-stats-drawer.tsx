@@ -22,6 +22,7 @@ const OUTCOME_TONE: Record<RoutingOutcome, string> = {
   rejected_availability: "text-slate-500 dark:text-slate-400",
   rejected_paused: "text-slate-500 dark:text-slate-400",
   no_buyers_matched: "text-red-600 dark:text-red-400",
+  not_selected: "text-slate-500 dark:text-slate-400",
 };
 
 function CapBar({ label, used, cap }: { label: string; used: number; cap: number | null }) {
