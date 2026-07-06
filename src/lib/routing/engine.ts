@@ -63,6 +63,21 @@ export async function routeLead(input: RouteLeadInput): Promise<RouteLeadResult>
       findDuplicate(admin, input.orgId, email, phone),
     ]);
 
+  const ruleIds = (routingRules ?? []).map((r) => r.id);
+  const { data: ruleBuyers } =
+    ruleIds.length > 0
+      ? await admin
+          .from("routing_rule_buyers")
+          .select("routing_rule_id, buyer_id")
+          .in("routing_rule_id", ruleIds)
+      : { data: [] as { routing_rule_id: string; buyer_id: string }[] };
+
+  const buyerIdsByRule = new Map<string, Set<string>>();
+  for (const rb of ruleBuyers ?? []) {
+    if (!buyerIdsByRule.has(rb.routing_rule_id)) buyerIdsByRule.set(rb.routing_rule_id, new Set());
+    buyerIdsByRule.get(rb.routing_rule_id)!.add(rb.buyer_id);
+  }
+
   const intentScore = computeIntentScore({
     answers: input.answers ?? {},
     funnelQuestions: (funnelQuestions ?? []).map((q) => ({ id: q.id, options: q.options })),
@@ -132,8 +147,14 @@ export async function routeLead(input: RouteLeadInput): Promise<RouteLeadResult>
     })
   );
 
+  const assignedBuyerIds = matchedRule ? buyerIdsByRule.get(matchedRule.id) : undefined;
+  const candidateBuyers =
+    assignedBuyerIds && assignedBuyerIds.size > 0
+      ? (buyers ?? []).filter((b) => assignedBuyerIds.has(b.id))
+      : buyers ?? [];
+
   const { eligible, rejected } = filterEligibleBuyers(
-    buyers ?? [],
+    candidateBuyers,
     { state: input.state ?? null, productType: input.productType ?? null, intentScore },
     orgTimezone
   );
