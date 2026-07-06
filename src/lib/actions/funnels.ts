@@ -232,8 +232,24 @@ export async function reorderFunnelPage(
   const a = pages[index];
   const b = pages[swapIndex];
 
-  await supabase.from("funnel_pages").update({ position: b.position }).eq("id", a.id);
-  await supabase.from("funnel_pages").update({ position: a.position }).eq("id", b.id);
+  // funnel_pages has a unique(funnel_id, position) constraint, so a direct
+  // two-way swap collides: b's position isn't free until a moves out of the
+  // way first. Stage through a temporary out-of-range position instead.
+  const { error: e1 } = await supabase
+    .from("funnel_pages")
+    .update({ position: -1 })
+    .eq("id", a.id);
+  const { error: e2 } = await supabase
+    .from("funnel_pages")
+    .update({ position: a.position })
+    .eq("id", b.id);
+  const { error: e3 } = await supabase
+    .from("funnel_pages")
+    .update({ position: b.position })
+    .eq("id", a.id);
+
+  const error = e1 ?? e2 ?? e3;
+  if (error) return { error: error.message };
 
   revalidatePath(`/funnels/${funnelId}`);
   return { id: pageId };

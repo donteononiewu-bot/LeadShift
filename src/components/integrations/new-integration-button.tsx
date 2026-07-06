@@ -11,7 +11,6 @@ const TYPE_OPTIONS: { value: IntegrationType; label: string }[] = [
   { value: "webhook", label: "Generic Webhook" },
   { value: "zapier", label: "Zapier" },
   { value: "meta_lead_ads", label: "Meta Lead Ads" },
-  { value: "crm", label: "CRM" },
 ];
 
 export function NewIntegrationButton({

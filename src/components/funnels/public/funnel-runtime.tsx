@@ -32,10 +32,12 @@ export function FunnelRuntime({
   funnel,
   pages,
   questionsByPage,
+  isPreview = false,
 }: {
   funnel: Funnel;
   pages: FunnelPage[];
   questionsByPage: Record<string, FunnelQuestion[]>;
+  isPreview?: boolean;
 }) {
   const searchParams = useSearchParams();
   const [pageIndex, setPageIndex] = useState(0);
@@ -55,6 +57,9 @@ export function FunnelRuntime({
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+    // Preview never creates a funnel_submissions row, never counts a view,
+    // and never routes a lead — it's just the same UI rendering real content.
+    if (isPreview) return;
     startFunnelSubmission({
       funnelId: funnel.id,
       referrer: document.referrer || null,
@@ -84,13 +89,20 @@ export function FunnelRuntime({
 
   async function handleQuestionAnswer(question: FunnelQuestion, value: unknown) {
     setAnswers((a) => ({ ...a, [question.id]: value }));
-    if (submissionId) {
+    if (!isPreview && submissionId) {
       await saveFunnelAnswer(submissionId, question.id, value);
     }
     goNext();
   }
 
   async function handleContactSubmit() {
+    if (isPreview) {
+      // No real submission to complete, no lead to route — just advance
+      // to the result/redirect pages so the owner can see what they look like.
+      setResult(null);
+      goNext();
+      return;
+    }
     if (!submissionId) {
       setError("This funnel didn't start correctly — please refresh and try again.");
       return;
@@ -119,7 +131,13 @@ export function FunnelRuntime({
       className="flex min-h-screen flex-col items-center justify-center px-4 py-12"
       style={{ ["--funnel-color" as string]: funnel.primary_color }}
     >
-      {funnel.meta_pixel_id && (
+      {isPreview && (
+        <div className="fixed inset-x-0 top-0 z-50 bg-slate-900 py-2 text-center text-xs font-medium text-white">
+          Preview mode — no leads, views, or pixel events are recorded.
+        </div>
+      )}
+
+      {!isPreview && funnel.meta_pixel_id && (
         <Script
           id="meta-pixel"
           strategy="afterInteractive"
@@ -195,6 +213,7 @@ export function FunnelRuntime({
             page={page}
             result={result}
             submissionId={submissionId}
+            isPreview={isPreview}
           />
         )}
       </div>
@@ -465,16 +484,20 @@ function BookingRedirectPage({
   page,
   result,
   submissionId,
+  isPreview,
 }: {
   page: FunnelPage;
   result: RouteLeadResult | null;
   submissionId: string | null;
+  isPreview: boolean;
 }) {
   const content = page.content as { message?: string; delaySeconds?: string };
   const delay = Number(content.delaySeconds ?? "2") * 1000;
 
   useEffect(() => {
-    if (!result?.bookingCalendarUrl) return;
+    // In preview there's no real routing result to redirect to, and we
+    // don't want to navigate the owner away from their own preview tab.
+    if (isPreview || !result?.bookingCalendarUrl) return;
     const timer = setTimeout(async () => {
       fireMetaPixelEvent("Schedule");
       if (submissionId) await markFunnelRedirect(submissionId);
@@ -482,7 +505,7 @@ function BookingRedirectPage({
     }, delay);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result?.bookingCalendarUrl]);
+  }, [result?.bookingCalendarUrl, isPreview]);
 
   return (
     <div className="text-center">
@@ -492,7 +515,12 @@ function BookingRedirectPage({
       <p className="mt-3 text-slate-500">
         {content.message || "Thanks! We're connecting you with the right specialist."}
       </p>
-      {result?.bookingCalendarUrl ? (
+      {isPreview ? (
+        <p className="mt-6 text-sm text-slate-400">
+          In a real submission, this redirects to the matched buyer&apos;s booking link
+          after {Math.round(delay / 1000)}s.
+        </p>
+      ) : result?.bookingCalendarUrl ? (
         <a
           href={result.bookingCalendarUrl}
           className="mt-6 inline-block text-sm text-slate-400 underline"

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Eye } from "lucide-react";
 import { clsx } from "clsx";
 import { Badge } from "@/components/ui/badge";
 import { FunnelPagesEditor } from "./funnel-pages-editor";
@@ -57,16 +57,26 @@ export function FunnelBuilder({
             {liveUrl}
           </p>
         </div>
-        {funnel.status === "published" && (
+        <div className="flex gap-2">
           <Link
-            href={liveUrl}
+            href={`${liveUrl}?preview=1`}
             target="_blank"
             className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
           >
-            <ExternalLink className="h-4 w-4" />
-            View live
+            <Eye className="h-4 w-4" />
+            Preview
           </Link>
-        )}
+          {funnel.status === "published" && (
+            <Link
+              href={liveUrl}
+              target="_blank"
+              className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
+            >
+              <ExternalLink className="h-4 w-4" />
+              View live
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="mb-6 flex gap-1 border-b border-slate-200 dark:border-slate-800">
