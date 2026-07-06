@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Script from "next/script";
 import { useSearchParams } from "next/navigation";
+import { US_STATES } from "@/lib/us-states";
 import {
   startFunnelSubmission,
   saveFunnelAnswer,
@@ -299,6 +300,39 @@ function QuestionPage({
   }
 
   const type: FunnelQuestionType = question.question_type;
+
+  // A question mapped to "state" always gets a real dropdown of all 50
+  // states (+DC) here, regardless of whatever options were configured in
+  // the builder — nobody should have to hand-type 50 answer choices.
+  if (question.lead_field_mapping === "state") {
+    return (
+      <div>
+        <h2 className="mb-6 text-center text-2xl font-semibold text-slate-900">
+          {question.question_text}
+        </h2>
+        <select
+          value={textValue}
+          onChange={(e) => setTextValue(e.target.value)}
+          className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2"
+        >
+          <option value="">Select your state</option>
+          {US_STATES.map((s) => (
+            <option key={s.code} value={s.code}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => onAnswer(question, textValue)}
+          disabled={question.is_required && !textValue}
+          style={primaryButtonStyle(color)}
+          className="mt-6 w-full rounded-lg px-4 py-3 font-medium text-white disabled:opacity-40"
+        >
+          Continue
+        </button>
+      </div>
+    );
+  }
 
   if (type === "single_choice" || type === "dropdown" || type === "boolean") {
     const options =

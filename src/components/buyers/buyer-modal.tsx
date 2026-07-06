@@ -220,16 +220,28 @@ export function BuyerModal({
             <div>
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Leave empty to accept leads from any state.
+                  {values.states.length === 0
+                    ? "No states selected — this buyer accepts leads from any state."
+                    : values.states.length === US_STATES.length
+                    ? "All states selected — this buyer accepts leads from anywhere."
+                    : `${values.states.length} state${values.states.length === 1 ? "" : "s"} selected — only these states will route here.`}
                 </p>
-                {values.states.length > 0 && (
+                <div className="flex shrink-0 gap-3">
                   <button
-                    onClick={() => update("states", [])}
+                    onClick={() => update("states", US_STATES.map((s) => s.code))}
                     className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
                   >
-                    Accept all states
+                    Select all
                   </button>
-                )}
+                  {values.states.length > 0 && (
+                    <button
+                      onClick={() => update("states", [])}
+                      className="text-xs font-medium text-slate-500 hover:underline dark:text-slate-400"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {US_STATES.map((s) => (

@@ -184,7 +184,13 @@ export function FunnelQuestionForm({
         </div>
       </div>
 
-      {typeMeta.hasOptions && (
+      {leadFieldMapping === "state" ? (
+        <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+          This question shows a dropdown of all 50 states (+DC) automatically — no
+          need to add answer choices.
+        </p>
+      ) : (
+        typeMeta.hasOptions && (
         <div>
           <div className="mb-1 flex items-center justify-between">
             <label className="block text-xs font-medium text-slate-500">
@@ -224,6 +230,7 @@ export function FunnelQuestionForm({
             ))}
           </div>
         </div>
+        )
       )}
 
       <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">

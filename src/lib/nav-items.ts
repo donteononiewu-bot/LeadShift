@@ -9,6 +9,7 @@ import {
   History,
   Plug,
   Settings,
+  UserCog,
   FlaskConical,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
   { label: "Routing Rules", href: "/routing-rules", icon: Route },
   { label: "System History", href: "/history", icon: History },
   { label: "Integrations", href: "/integrations", icon: Plug },
+  { label: "Team", href: "/team", icon: UserCog },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

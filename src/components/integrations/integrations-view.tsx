@@ -12,11 +12,38 @@ import type { Database, IntegrationType } from "@/lib/types/database";
 type Integration = Database["public"]["Tables"]["integrations"]["Row"];
 type Funnel = Database["public"]["Tables"]["funnels"]["Row"];
 
-const TYPE_META: Record<IntegrationType, { label: string; icon: typeof Webhook; path: string }> = {
-  webhook: { label: "Generic Webhook", icon: Webhook, path: "generic" },
-  zapier: { label: "Zapier", icon: Zap, path: "zapier" },
-  meta_lead_ads: { label: "Meta Lead Ads", icon: Megaphone, path: "meta" },
-  crm: { label: "CRM", icon: Server, path: "generic" },
+const TYPE_META: Record<
+  IntegrationType,
+  { label: string; icon: typeof Webhook; path: string; instructions: string }
+> = {
+  webhook: {
+    label: "Generic Webhook",
+    icon: Webhook,
+    path: "generic",
+    instructions:
+      "Point your source at this URL with a POST request and a JSON body. Whatever fields it sends, map them to lead fields below (e.g. contact.email → Email) using dot-notation paths into the JSON body.",
+  },
+  zapier: {
+    label: "Zapier",
+    icon: Zap,
+    path: "zapier",
+    instructions:
+      'In Zapier, add a "Webhooks by Zapier" action, set it to POST, and paste this URL as the webhook URL. Map the fields your Zap sends to lead fields below.',
+  },
+  meta_lead_ads: {
+    label: "Meta Lead Ads",
+    icon: Megaphone,
+    path: "meta",
+    instructions:
+      "Register this URL as your Meta app's webhook callback URL (Meta Developer Dashboard → Webhooks → Page → leadgen), then fill in the Facebook Page ID and a page access token below (Graph API Explorer, with leads_retrieval permission). Meta signs every request; the app needs META_APP_SECRET and META_VERIFY_TOKEN set as environment variables on the server, or incoming leads will be silently rejected.",
+  },
+  crm: {
+    label: "CRM",
+    icon: Server,
+    path: "generic",
+    instructions:
+      "Point your CRM's outbound webhook at this URL with a POST request and a JSON body, same as a generic webhook. Map its fields to lead fields below.",
+  },
 };
 
 export function IntegrationsView({
@@ -120,19 +147,14 @@ export function IntegrationsView({
 
                 {expanded && (
                   <div className="px-4 pb-4">
-                    {integration.type !== "meta_lead_ads" && (
-                      <div className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                        {appUrl}/api/webhooks/{meta.path}?key={integration.ingest_key}
-                      </div>
-                    )}
-                    {integration.type === "meta_lead_ads" && (
-                      <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                        Register {appUrl}/api/webhooks/meta as your app&apos;s webhook
-                        callback URL in the Meta developer dashboard, subscribe the
-                        page to leadgen events, then fill in the page ID and
-                        access token below.
-                      </p>
-                    )}
+                    <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                      {meta.instructions}
+                    </p>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      {integration.type === "meta_lead_ads"
+                        ? `${appUrl}/api/webhooks/meta`
+                        : `${appUrl}/api/webhooks/${meta.path}?key=${integration.ingest_key}`}
+                    </div>
                     <IntegrationMappingEditor integration={integration} funnels={funnels} />
                   </div>
                 )}

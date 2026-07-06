@@ -57,24 +57,33 @@ export function FunnelBuilder({
             {liveUrl}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link
-            href={`${liveUrl}?preview=1`}
-            target="_blank"
-            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
-          >
-            <Eye className="h-4 w-4" />
-            Preview
-          </Link>
-          {funnel.status === "published" && (
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex gap-2">
             <Link
-              href={liveUrl}
+              href={`${liveUrl}?preview=1`}
               target="_blank"
+              title="Opens in a new tab. Doesn't count a view, create a lead, or fire tracking pixels."
               className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
             >
-              <ExternalLink className="h-4 w-4" />
-              View live
+              <Eye className="h-4 w-4" />
+              Preview (no lead created)
             </Link>
+            {funnel.status === "published" && (
+              <Link
+                href={liveUrl}
+                target="_blank"
+                title="Opens in a new tab. Submitting it creates a real lead and runs the routing engine, exactly like a real visitor."
+                className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Test live (creates a lead)
+              </Link>
+            )}
+          </div>
+          {funnel.status !== "published" && (
+            <p className="text-xs text-slate-400">
+              Publish to unlock a live test link that creates real leads.
+            </p>
           )}
         </div>
       </div>
