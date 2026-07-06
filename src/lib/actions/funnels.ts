@@ -77,11 +77,23 @@ export async function updateFunnelSettings(
   const orgId = await getCurrentOrgId(supabase);
   if (!orgId) return { error: "Not authenticated." };
 
+  const slug = slugify(values.slug);
+  const { data: existing } = await supabase
+    .from("funnels")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("slug", slug)
+    .neq("id", funnelId)
+    .maybeSingle();
+  if (existing) {
+    return { error: `The URL slug "${slug}" is already used by another funnel.` };
+  }
+
   const { error } = await supabase
     .from("funnels")
     .update({
       name: values.name.trim(),
-      slug: slugify(values.slug),
+      slug,
       status: values.status,
       primary_color: values.primaryColor,
       logo_url: values.logoUrl.trim() || null,
